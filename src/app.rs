@@ -248,7 +248,7 @@ impl VantaMorphApp {
 
         // Drop any pending preview so the new preset's simulation renders immediately
         self.preview_image = None;
-        
+
         let (seed_count, mut seeds, colors, mut sim) = morph_sim::init_image(self.size.0, source);
         sim.prepare_play(&mut seeds, self.reverse);
         self.apply_sim_init(device, queue, seed_count, seeds, colors, sim);
@@ -822,7 +822,6 @@ impl VantaMorphApp {
 
             reverse: false,
         }
-
     }
 
     pub fn get_latest_msg(&mut self) -> Option<ProgressMsg> {
@@ -1804,7 +1803,7 @@ macro_rules! include_presets {
                     )))
                     .unwrap()
                     .to_rgb8();
-                    
+
                     let target_img = {
                         let target_bytes = include_bytes!(concat!(
                             "../presets/",
@@ -1816,7 +1815,7 @@ macro_rules! include_presets {
                             .to_rgb8();
                         Some(target_buf.into_raw())
                     };
-                    
+
                     Preset {
                         inner: UnprocessedPreset {
                             name: $name.to_owned(),

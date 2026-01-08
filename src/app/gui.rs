@@ -57,10 +57,10 @@ pub enum RightPanelTab {
 /// Playback speed options
 #[derive(Clone, Copy, PartialEq)]
 pub enum PlaybackSpeed {
-    Quarter,  // 0.25x
-    Half,     // 0.5x
-    Normal,   // 1x
-    Double,   // 2x
+    Quarter, // 0.25x
+    Half,    // 0.5x
+    Normal,  // 1x
+    Double,  // 2x
 }
 
 impl Default for PlaybackSpeed {
@@ -78,7 +78,7 @@ impl PlaybackSpeed {
             PlaybackSpeed::Double => 2.0,
         }
     }
-    
+
     fn label(&self) -> &'static str {
         match self {
             PlaybackSpeed::Quarter => "0.25×",
@@ -143,91 +143,90 @@ pub(crate) struct GuiState {
     error_message: Option<String>,
 
     has_morphed_once: bool,
-    
+
     /// Pending image to auto-morph (set when user drops/uploads an image for automatic processing)
     pub pending_auto_morph: Option<(String, SourceImg)>,
-    
+
     /// When processing a preset click, this holds the index to replace instead of creating new
     pub replacing_preset_index: Option<usize>,
-    
+
     /// Pending preset to process on next frame (for initial load)
     pub pending_preset_process: Option<usize>,
-    
+
     /// Frame counter to delay initial processing until worker is ready (WASM)
     pub frames_since_start: u32,
-    
+
     // === New UI State ===
-    
     /// Simple vs Pro UI mode
     pub ui_mode: UiMode,
-    
+
     /// Right panel tab selection (Pro mode)
     pub right_panel_tab: RightPanelTab,
-    
+
     /// Playback speed multiplier
     pub playback_speed: PlaybackSpeed,
-    
+
     /// Loop playback
     pub loop_playback: bool,
-    
+
     /// Timeline position (0.0 to 1.0)
     pub timeline_position: f32,
-    
+
     /// Is timeline being scrubbed
     pub scrubbing: bool,
-    
+
     /// Source image for current morph (thumbnail)
     #[allow(dead_code)]
     pub source_thumbnail: Option<TextureHandle>,
-    
+
     /// Target image for current morph (thumbnail)  
     #[allow(dead_code)]
     pub target_thumbnail: Option<TextureHandle>,
-    
+
     /// Staged source image (before starting morph)
     pub staged_source: Option<(String, SourceImg)>,
-    
+
     /// Staged target image (before starting morph, None = use default)
     pub staged_target: Option<(String, SourceImg)>,
-    
+
     /// Texture handle for staged source preview
     pub staged_source_texture: Option<TextureHandle>,
-    
+
     /// Texture handle for staged target preview
     pub staged_target_texture: Option<TextureHandle>,
-    
+
     /// Show left panel
     pub show_left_panel: bool,
-    
+
     /// Show right panel
     pub show_right_panel: bool,
-    
+
     /// Lock target (keep target while testing different sources)
     pub lock_target: bool,
-    
+
     /// Motion style
     pub motion_style: MotionStyle,
-    
+
     /// Motion sliders
     pub swirl_amount: f32,
     pub turbulence: f32,
     pub snap_strength: f32,
     pub dissolve: f32,
     pub animation_duration: f32,
-    
+
     /// Quality settings
     pub resolution: u32,
     pub edge_boost: bool,
     pub dither_enabled: bool,
     pub dither_strength: f32,
-    
+
     /// Compare view mode
     pub compare_view: CompareView,
     pub split_position: f32,
-    
+
     /// Show canvas overlays (particle count, fps, resolution)
     pub show_overlays: bool,
-    
+
     /// Project name
     pub project_name: String,
 }
@@ -239,17 +238,13 @@ impl GuiState {
         has_morphed_once: bool,
     ) -> GuiState {
         let current_preset_target = presets.get(current_preset).and_then(|preset| {
-            preset
-                .inner
-                .target_img
-                .as_ref()
-                .and_then(|data| {
-                    image::ImageBuffer::<image::Rgb<u8>, _>::from_vec(
-                        preset.inner.width,
-                        preset.inner.height,
-                        data.clone(),
-                    )
-                })
+            preset.inner.target_img.as_ref().and_then(|data| {
+                image::ImageBuffer::<image::Rgb<u8>, _>::from_vec(
+                    preset.inner.width,
+                    preset.inner.height,
+                    data.clone(),
+                )
+            })
         });
 
         GuiState {
@@ -361,27 +356,37 @@ fn hide_icons() {
 #[allow(dead_code)]
 fn check_dropped_image() -> Option<(String, SourceImg)> {
     use web_sys::js_sys;
-    
+
     let window = web_sys::window()?;
-    
+
     // Check if droppedImageData exists and has data
     let dropped_data = js_sys::Reflect::get(&window, &"droppedImageData".into()).ok()?;
     if dropped_data.is_null() || dropped_data.is_undefined() {
         return None;
     }
-    
+
     // Get the name
     let name_val = js_sys::Reflect::get(&window, &"droppedImageName".into()).ok()?;
-    let name = name_val.as_string().unwrap_or_else(|| "dropped_image".to_string());
-    
+    let name = name_val
+        .as_string()
+        .unwrap_or_else(|| "dropped_image".to_string());
+
     // Convert to Uint8Array and then to Vec<u8>
     let uint8_array = js_sys::Uint8Array::from(dropped_data);
     let data: Vec<u8> = uint8_array.to_vec();
-    
+
     // Clear the dropped data immediately
-    let _ = js_sys::Reflect::set(&window, &"droppedImageData".into(), &wasm_bindgen::JsValue::NULL);
-    let _ = js_sys::Reflect::set(&window, &"droppedImageName".into(), &wasm_bindgen::JsValue::NULL);
-    
+    let _ = js_sys::Reflect::set(
+        &window,
+        &"droppedImageData".into(),
+        &wasm_bindgen::JsValue::NULL,
+    );
+    let _ = js_sys::Reflect::set(
+        &window,
+        &"droppedImageName".into(),
+        &wasm_bindgen::JsValue::NULL,
+    );
+
     // Try to load the image
     match image::load_from_memory(&data) {
         Ok(img) => Some((name, img.to_rgb8())),
@@ -429,7 +434,7 @@ impl App for VantaMorphApp {
         // Check for dropped/pasted images (WASM only)
         #[cfg(target_arch = "wasm32")]
         {
-            if self.gui.pending_auto_morph.is_none() 
+            if self.gui.pending_auto_morph.is_none()
                 && self.gui.show_progress_modal.is_none()
                 && self.gui.configuring_generation.is_none()
             {
@@ -521,7 +526,7 @@ impl App for VantaMorphApp {
                     let base_updates = 3;
                     let speed_mult = self.gui.playback_speed.multiplier();
                     let updates = ((base_updates as f32) * speed_mult).max(1.0) as usize;
-                    
+
                     for _ in 0..updates {
                         self.sim.update(&mut self.seeds, self.size.0);
                     }
@@ -551,7 +556,8 @@ impl App for VantaMorphApp {
         if self.gui.staged_source.is_some() && self.gui.staged_source_texture.is_none() {
             if let Some((_, img)) = &self.gui.staged_source {
                 // Resize to thumbnail size
-                let thumb = image::imageops::resize(img, 100, 100, image::imageops::FilterType::Triangle);
+                let thumb =
+                    image::imageops::resize(img, 100, 100, image::imageops::FilterType::Triangle);
                 let rgba: image::RgbaImage = image::DynamicImage::ImageRgb8(thumb).into_rgba8();
                 let size = [rgba.width() as usize, rgba.height() as usize];
                 let pixels = rgba.into_raw();
@@ -563,11 +569,12 @@ impl App for VantaMorphApp {
                 ));
             }
         }
-        
+
         if self.gui.staged_target.is_some() && self.gui.staged_target_texture.is_none() {
             if let Some((_, img)) = &self.gui.staged_target {
                 // Resize to thumbnail size
-                let thumb = image::imageops::resize(img, 100, 100, image::imageops::FilterType::Triangle);
+                let thumb =
+                    image::imageops::resize(img, 100, 100, image::imageops::FilterType::Triangle);
                 let rgba: image::RgbaImage = image::DynamicImage::ImageRgb8(thumb).into_rgba8();
                 let size = [rgba.width() as usize, rgba.height() as usize];
                 let pixels = rgba.into_raw();
@@ -584,21 +591,23 @@ impl App for VantaMorphApp {
         if let Some((name, img)) = self.gui.pending_auto_morph.take() {
             let img = ensure_reasonable_size(img);
             let mut settings = GenerationSettings::default(Uuid::new_v4(), name.clone());
-            
+
             // Apply preset target if available so we morph into preset's target, not default Obama
             if let Some(target) = &self.gui.current_preset_target {
                 settings.set_raw_target(target.clone());
             }
-            
+
             self.gui.show_progress_modal(settings.id);
             self.gui.saved_config = Some((img.clone(), settings.clone()));
-            
+
             // Adjust proximity importance for consistency across resolutions
-            settings.proximity_importance = (settings.proximity_importance as f32
-                / (settings.sidelen as f32 / 128.0)) as i64;
-            
-            self.gui.process_cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
-            
+            settings.proximity_importance =
+                (settings.proximity_importance as f32 / (settings.sidelen as f32 / 128.0)) as i64;
+
+            self.gui
+                .process_cancelled
+                .store(false, std::sync::atomic::Ordering::Relaxed);
+
             let unprocessed = UnprocessedPreset {
                 name: settings.name.clone(),
                 width: img.width(),
@@ -606,26 +615,21 @@ impl App for VantaMorphApp {
                 source_img: img.into_raw(),
                 target_img: None,
             };
-            
+
             self.resize_textures(device, (settings.sidelen, settings.sidelen), false);
-            
+
             #[cfg(target_arch = "wasm32")]
             {
                 self.start_job(unprocessed, settings);
             }
-            
+
             #[cfg(not(target_arch = "wasm32"))]
             {
                 std::thread::spawn({
-                    let tx = self.progress_tx.clone();
+                    let mut tx = self.progress_tx.clone();
                     let cancelled = self.gui.process_cancelled.clone();
                     move || {
-                        let result = calculate::process(
-                            unprocessed,
-                            settings,
-                            &mut tx.clone(),
-                            cancelled,
-                        );
+                        let result = calculate::process(unprocessed, settings, &mut tx, cancelled);
                         if let Err(err) = result {
                             tx.send(ProgressMsg::Error(err.to_string())).ok();
                         }
@@ -643,7 +647,7 @@ impl App for VantaMorphApp {
         let worker_ready = self.gui.frames_since_start > 10;
         #[cfg(not(target_arch = "wasm32"))]
         let worker_ready = true;
-        
+
         if worker_ready {
             if let Some(preset_idx) = self.gui.pending_preset_process.take() {
                 if let Some(preset) = self.gui.presets.get(preset_idx).cloned() {
@@ -652,74 +656,78 @@ impl App for VantaMorphApp {
                             preset.inner.width,
                             preset.inner.height,
                             preset.inner.source_img.clone(),
-                        ).unwrap();
-                        
-                        let mut settings = GenerationSettings::default(
-                            Uuid::new_v4(),
-                        preset.inner.name.clone(),
-                    );
-                    
-                    // Set the preset's target image
-                    if let Some(target_data) = &preset.inner.target_img {
-                        if let Some(target_img) = image::ImageBuffer::<image::Rgb<u8>, _>::from_vec(
-                            preset.inner.width,
-                            preset.inner.height,
-                            target_data.clone(),
-                        ) {
-                            settings.set_raw_target(target_img);
-                        }
-                    }
-                    
-                    self.gui.show_progress_modal(settings.id);
-                    self.gui.saved_config = Some((source_img.clone(), settings.clone()));
-                    self.gui.replacing_preset_index = Some(preset_idx);
-                    
-                    settings.proximity_importance = (settings.proximity_importance as f32
-                        / (settings.sidelen as f32 / 128.0)) as i64;
-                    
-                    self.gui.process_cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
-                    
-                    let unprocessed = UnprocessedPreset {
-                        name: settings.name.clone(),
-                        width: source_img.width(),
-                        height: source_img.height(),
-                        source_img: source_img.into_raw(),
-                        target_img: None,
-                    };
-                    
-                    self.resize_textures(device, (settings.sidelen, settings.sidelen), false);
-                    
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        self.start_job(unprocessed, settings);
-                    }
-                    
-                    #[cfg(not(target_arch = "wasm32"))]
-                    {
-                        std::thread::spawn({
-                            let tx = self.progress_tx.clone();
-                            let cancelled = self.gui.process_cancelled.clone();
-                            move || {
-                                let result = calculate::process(
-                                    unprocessed,
-                                    settings,
-                                    &mut tx.clone(),
-                                    cancelled,
-                                );
-                                if let Err(err) = result {
-                                    tx.send(ProgressMsg::Error(err.to_string())).ok();
-                                }
+                        )
+                        .unwrap();
+
+                        let mut settings =
+                            GenerationSettings::default(Uuid::new_v4(), preset.inner.name.clone());
+
+                        // Set the preset's target image
+                        if let Some(target_data) = &preset.inner.target_img {
+                            if let Some(target_img) =
+                                image::ImageBuffer::<image::Rgb<u8>, _>::from_vec(
+                                    preset.inner.width,
+                                    preset.inner.height,
+                                    target_data.clone(),
+                                )
+                            {
+                                settings.set_raw_target(target_img);
                             }
-                        });
+                        }
+
+                        self.gui.show_progress_modal(settings.id);
+                        self.gui.saved_config = Some((source_img.clone(), settings.clone()));
+                        self.gui.replacing_preset_index = Some(preset_idx);
+
+                        settings.proximity_importance = (settings.proximity_importance as f32
+                            / (settings.sidelen as f32 / 128.0))
+                            as i64;
+
+                        self.gui
+                            .process_cancelled
+                            .store(false, std::sync::atomic::Ordering::Relaxed);
+
+                        let unprocessed = UnprocessedPreset {
+                            name: settings.name.clone(),
+                            width: source_img.width(),
+                            height: source_img.height(),
+                            source_img: source_img.into_raw(),
+                            target_img: None,
+                        };
+
+                        self.resize_textures(device, (settings.sidelen, settings.sidelen), false);
+
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            self.start_job(unprocessed, settings);
+                        }
+
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            std::thread::spawn({
+                                let mut tx = self.progress_tx.clone();
+                                let cancelled = self.gui.process_cancelled.clone();
+                                move || {
+                                    let result = calculate::process(
+                                        unprocessed,
+                                        settings,
+                                        &mut tx,
+                                        cancelled,
+                                    );
+                                    if let Err(err) = result {
+                                        tx.send(ProgressMsg::Error(err.to_string())).ok();
+                                    }
+                                }
+                            });
+                        }
                     }
                 }
             }
         }
-        }
 
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             ui.ctx().set_zoom_factor(baseline_zoom);
-            
+
             // === NEW TOP BAR DESIGN ===
             ui.horizontal(|ui| {
                 // Left section: Logo + Project name
@@ -727,17 +735,17 @@ impl App for VantaMorphApp {
                     ui.label(egui::RichText::new("🎨").size(20.0));
                     ui.label(egui::RichText::new("VantaMorph").strong().size(16.0));
                     ui.separator();
-                    
+
                     // Editable project name
                     ui.add(
                         egui::TextEdit::singleline(&mut self.gui.project_name)
                             .desired_width(120.0)
-                            .hint_text("Project name...")
+                            .hint_text("Project name..."),
                     );
                 });
-                
+
                 ui.separator();
-                
+
                 // Center section: Preset picker + Randomize
                 ui.horizontal(|ui| {
                     ui.label("Preset:");
@@ -754,14 +762,14 @@ impl App for VantaMorphApp {
                         })
                         .show_ui(ui, |ui| {
                             let mut clicked_preset: Option<(usize, Preset)> = None;
-                            
+
                             for (i, preset) in self.gui.presets.clone().into_iter().enumerate() {
                                 let selected = i == self.gui.current_preset;
                                 if ui.selectable_label(selected, &preset.inner.name).clicked() {
                                     clicked_preset = Some((i, preset));
                                 }
                             }
-                            
+
                             if let Some((i, preset)) = clicked_preset {
                                 // Trigger fresh morph calculation if preset has target
                                 if preset.inner.target_img.is_some() {
@@ -773,10 +781,15 @@ impl App for VantaMorphApp {
                                 self.gui.current_preset = i;
                             }
                         });
-                    
+
                     // Randomize button
-                    if ui.button("🎲 Random").on_hover_text("Pick a random preset").clicked() {
-                        let random_idx = (self.gui.frames_since_start as usize) % self.gui.presets.len();
+                    if ui
+                        .button("🎲 Random")
+                        .on_hover_text("Pick a random preset")
+                        .clicked()
+                    {
+                        let random_idx =
+                            (self.gui.frames_since_start as usize) % self.gui.presets.len();
                         if let Some(preset) = self.gui.presets.get(random_idx).cloned() {
                             if preset.inner.target_img.is_some() {
                                 self.gui.pending_preset_process = Some(random_idx);
@@ -788,11 +801,11 @@ impl App for VantaMorphApp {
                         }
                     }
                 });
-                
+
                 // Spacer
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Right section: Export + Share + Settings
-                    
+
                     // Settings menu
                     ui.menu_button("⚙", |ui| {
                         ui.checkbox(&mut self.gui.show_overlays, "Show canvas overlays");
@@ -806,9 +819,13 @@ impl App for VantaMorphApp {
                             ui.close();
                         }
                     });
-                    
+
                     // Share button (placeholder)
-                    if ui.button("🔗 Share").on_hover_text("Share this morph").clicked() {
+                    if ui
+                        .button("🔗 Share")
+                        .on_hover_text("Share this morph")
+                        .clicked()
+                    {
                         // TODO: Implement share functionality
                         #[cfg(target_arch = "wasm32")]
                         {
@@ -818,7 +835,7 @@ impl App for VantaMorphApp {
                                 .ok();
                         }
                     }
-                    
+
                     // Export button (primary action)
                     let export_btn = egui::Button::new(egui::RichText::new("📤 Export").strong())
                         .fill(egui::Color32::from_rgb(70, 130, 180));
@@ -826,10 +843,17 @@ impl App for VantaMorphApp {
                         if !self.gif_recorder.is_recording() {
                             self.gif_recorder.status = GifStatus::Recording;
                             self.gif_recorder.encoder = None;
-                            if let Err(err) = self.gif_recorder.init_encoder(self.colors.read().unwrap().as_ref()) {
+                            if let Err(err) = self
+                                .gif_recorder
+                                .init_encoder(self.colors.read().unwrap().as_ref())
+                            {
                                 self.gif_recorder.status = GifStatus::Error(err.to_string());
                             } else {
-                                self.resize_textures(device, (GIF_RESOLUTION, GIF_RESOLUTION), false);
+                                self.resize_textures(
+                                    device,
+                                    (GIF_RESOLUTION, GIF_RESOLUTION),
+                                    false,
+                                );
                                 self.reset_sim(device, &rs.queue);
                                 self.gui.animate = true;
                                 for _ in 0..20 {
@@ -838,9 +862,9 @@ impl App for VantaMorphApp {
                             }
                         }
                     }
-                    
+
                     ui.separator();
-                    
+
                     // Morph new image button (glows if user hasn't morphed once)
                     let morph_btn_response = if !self.gui.has_morphed_once {
                         let time = ui.input(|i| i.time);
@@ -850,12 +874,18 @@ impl App for VantaMorphApp {
                             (120.0 + pulse * 135.0) as u8,
                             (200.0 + pulse * 55.0) as u8,
                         );
-                        ui.add(egui::Button::new("✨ Upload Image").stroke(egui::Stroke::new(2.0, glow_color)))
+                        ui.add(
+                            egui::Button::new("✨ Upload Image")
+                                .stroke(egui::Stroke::new(2.0, glow_color)),
+                        )
                     } else {
                         ui.button("📁 Upload")
                     };
-                    
-                    if morph_btn_response.on_hover_text("Upload a new image to morph").clicked() {
+
+                    if morph_btn_response
+                        .on_hover_text("Upload a new image to morph")
+                        .clicked()
+                    {
                         prompt_image(
                             "choose source image",
                             self,
@@ -867,7 +897,7 @@ impl App for VantaMorphApp {
                 });
             });
         });
-        
+
         // === LEFT SIDE PANEL (Pro Mode) ===
         if self.gui.ui_mode == UiMode::Pro && self.gui.show_left_panel {
             egui::SidePanel::left("left_panel")
@@ -878,18 +908,18 @@ impl App for VantaMorphApp {
                 .show(ctx, |ui| {
                     ui.heading("Inputs");
                     ui.separator();
-                    
+
                     // === SOURCE (Start) Card ===
                     ui.group(|ui| {
                         ui.label(egui::RichText::new("Source (Start)").strong());
-                        
+
                         // Thumbnail - show actual image if staged, otherwise placeholder
                         let thumb_size = egui::vec2(100.0, 100.0);
-                        
+
                         if let Some(tex) = &self.gui.staged_source_texture {
                             // Show actual thumbnail
                             ui.add(egui::Image::new((tex.id(), thumb_size)).corner_radius(4.0));
-                            
+
                             // Show name
                             if let Some((name, _)) = &self.gui.staged_source {
                                 let display_name = if name.len() > 15 {
@@ -901,8 +931,10 @@ impl App for VantaMorphApp {
                             }
                         } else {
                             // Placeholder
-                            let (rect, _resp) = ui.allocate_exact_size(thumb_size, egui::Sense::hover());
-                            ui.painter().rect_filled(rect, 4.0, egui::Color32::from_gray(40));
+                            let (rect, _resp) =
+                                ui.allocate_exact_size(thumb_size, egui::Sense::hover());
+                            ui.painter()
+                                .rect_filled(rect, 4.0, egui::Color32::from_gray(40));
                             ui.painter().text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
@@ -911,7 +943,7 @@ impl App for VantaMorphApp {
                                 egui::Color32::GRAY,
                             );
                         }
-                        
+
                         ui.horizontal(|ui| {
                             if ui.small_button("📁 Upload").clicked() {
                                 prompt_image(
@@ -932,36 +964,47 @@ impl App for VantaMorphApp {
                             }
                         });
                     });
-                    
+
                     ui.add_space(8.0);
-                    
+
                     // Swap button
-                    let can_swap = self.gui.staged_source.is_some() || self.gui.staged_target.is_some();
-                    if ui.add_enabled(can_swap, egui::Button::new("⇅ Swap Source ↔ Target")).clicked() {
+                    let can_swap =
+                        self.gui.staged_source.is_some() || self.gui.staged_target.is_some();
+                    if ui
+                        .add_enabled(can_swap, egui::Button::new("⇅ Swap Source ↔ Target"))
+                        .clicked()
+                    {
                         std::mem::swap(&mut self.gui.staged_source, &mut self.gui.staged_target);
-                        std::mem::swap(&mut self.gui.staged_source_texture, &mut self.gui.staged_target_texture);
+                        std::mem::swap(
+                            &mut self.gui.staged_source_texture,
+                            &mut self.gui.staged_target_texture,
+                        );
                     }
-                    
+
                     ui.add_space(8.0);
-                    
+
                     // === TARGET (End) Card ===
                     ui.group(|ui| {
                         ui.horizontal(|ui| {
                             ui.label(egui::RichText::new("Target (End)").strong());
                             // Lock toggle
                             let lock_icon = if self.gui.lock_target { "🔒" } else { "🔓" };
-                            if ui.small_button(lock_icon).on_hover_text("Lock target image").clicked() {
+                            if ui
+                                .small_button(lock_icon)
+                                .on_hover_text("Lock target image")
+                                .clicked()
+                            {
                                 self.gui.lock_target = !self.gui.lock_target;
                             }
                         });
-                        
+
                         // Thumbnail - show actual image if staged, otherwise placeholder for "default"
                         let thumb_size = egui::vec2(100.0, 100.0);
-                        
+
                         if let Some(tex) = &self.gui.staged_target_texture {
                             // Show actual thumbnail
                             ui.add(egui::Image::new((tex.id(), thumb_size)).corner_radius(4.0));
-                            
+
                             // Show name
                             if let Some((name, _)) = &self.gui.staged_target {
                                 let display_name = if name.len() > 15 {
@@ -973,8 +1016,10 @@ impl App for VantaMorphApp {
                             }
                         } else {
                             // Placeholder showing "Default" or "Use Preset Target"
-                            let (rect, _resp) = ui.allocate_exact_size(thumb_size, egui::Sense::hover());
-                            ui.painter().rect_filled(rect, 4.0, egui::Color32::from_gray(50));
+                            let (rect, _resp) =
+                                ui.allocate_exact_size(thumb_size, egui::Sense::hover());
+                            ui.painter()
+                                .rect_filled(rect, 4.0, egui::Color32::from_gray(50));
                             ui.painter().text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
@@ -983,7 +1028,7 @@ impl App for VantaMorphApp {
                                 egui::Color32::from_rgb(150, 150, 180),
                             );
                         }
-                        
+
                         ui.horizontal(|ui| {
                             if ui.small_button("📁 Upload").clicked() {
                                 prompt_image(
@@ -1004,9 +1049,9 @@ impl App for VantaMorphApp {
                             }
                         });
                     });
-                    
+
                     ui.add_space(12.0);
-                    
+
                     // === START BUTTON ===
                     let has_source = self.gui.staged_source.is_some();
                     let start_text = if has_source {
@@ -1014,21 +1059,22 @@ impl App for VantaMorphApp {
                     } else {
                         "▶ Start (need source)"
                     };
-                    
-                    let start_btn = egui::Button::new(egui::RichText::new(start_text).strong().size(14.0))
-                        .fill(if has_source { 
-                            egui::Color32::from_rgb(60, 140, 80) 
-                        } else { 
-                            egui::Color32::from_gray(60) 
-                        })
-                        .min_size(egui::vec2(ui.available_width(), 36.0));
-                    
+
+                    let start_btn =
+                        egui::Button::new(egui::RichText::new(start_text).strong().size(14.0))
+                            .fill(if has_source {
+                                egui::Color32::from_rgb(60, 140, 80)
+                            } else {
+                                egui::Color32::from_gray(60)
+                            })
+                            .min_size(egui::vec2(ui.available_width(), 36.0));
+
                     if ui.add_enabled(has_source, start_btn).clicked() {
                         if let Some((name, source_img)) = self.gui.staged_source.take() {
                             // Create morph with source and optional custom target
                             let source_img = ensure_reasonable_size(source_img);
                             let mut settings = GenerationSettings::default(Uuid::new_v4(), name);
-                            
+
                             // Use staged target if provided, otherwise use current preset's target
                             if let Some((_target_name, target_img)) = &self.gui.staged_target {
                                 let target_img = ensure_reasonable_size(target_img.clone());
@@ -1036,15 +1082,18 @@ impl App for VantaMorphApp {
                             } else if let Some(target) = &self.gui.current_preset_target {
                                 settings.set_raw_target(target.clone());
                             }
-                            
+
                             self.gui.show_progress_modal(settings.id);
                             self.gui.saved_config = Some((source_img.clone(), settings.clone()));
-                            
+
                             settings.proximity_importance = (settings.proximity_importance as f32
-                                / (settings.sidelen as f32 / 128.0)) as i64;
-                            
-                            self.gui.process_cancelled.store(false, std::sync::atomic::Ordering::Relaxed);
-                            
+                                / (settings.sidelen as f32 / 128.0))
+                                as i64;
+
+                            self.gui
+                                .process_cancelled
+                                .store(false, std::sync::atomic::Ordering::Relaxed);
+
                             let unprocessed = UnprocessedPreset {
                                 name: settings.name.clone(),
                                 width: source_img.width(),
@@ -1052,24 +1101,28 @@ impl App for VantaMorphApp {
                                 source_img: source_img.into_raw(),
                                 target_img: None,
                             };
-                            
-                            self.resize_textures(device, (settings.sidelen, settings.sidelen), false);
-                            
+
+                            self.resize_textures(
+                                device,
+                                (settings.sidelen, settings.sidelen),
+                                false,
+                            );
+
                             #[cfg(target_arch = "wasm32")]
                             {
                                 self.start_job(unprocessed, settings);
                             }
-                            
+
                             #[cfg(not(target_arch = "wasm32"))]
                             {
                                 std::thread::spawn({
-                                    let tx = self.progress_tx.clone();
+                                    let mut tx = self.progress_tx.clone();
                                     let cancelled = self.gui.process_cancelled.clone();
                                     move || {
                                         let result = calculate::process(
                                             unprocessed,
                                             settings,
-                                            &mut tx.clone(),
+                                            &mut tx,
                                             cancelled,
                                         );
                                         if let Err(err) = result {
@@ -1078,7 +1131,7 @@ impl App for VantaMorphApp {
                                     }
                                 });
                             }
-                            
+
                             // Clear staged source (keep target if locked)
                             self.gui.staged_source_texture = None;
                             if !self.gui.lock_target {
@@ -1087,14 +1140,18 @@ impl App for VantaMorphApp {
                             }
                         }
                     }
-                    
+
                     ui.add_space(8.0);
                     ui.separator();
-                    
+
                     // === Quick Actions ===
                     ui.label(egui::RichText::new("Quick Actions").strong());
-                    
-                    if ui.button("⚡ Quick Upload").on_hover_text("Upload and instantly morph").clicked() {
+
+                    if ui
+                        .button("⚡ Quick Upload")
+                        .on_hover_text("Upload and instantly morph")
+                        .clicked()
+                    {
                         prompt_image(
                             "choose source image",
                             self,
@@ -1103,12 +1160,16 @@ impl App for VantaMorphApp {
                             },
                         );
                     }
-                    
+
                     ui.add_space(4.0);
-                    ui.label(egui::RichText::new("💡 Tip: Drag & drop images!").small().weak());
+                    ui.label(
+                        egui::RichText::new("💡 Tip: Drag & drop images!")
+                            .small()
+                            .weak(),
+                    );
                 });
         }
-        
+
         // === RIGHT SIDE PANEL (Pro Mode) ===
         if self.gui.ui_mode == UiMode::Pro && self.gui.show_right_panel {
             egui::SidePanel::right("right_panel")
@@ -1119,41 +1180,56 @@ impl App for VantaMorphApp {
                 .show(ctx, |ui| {
                     // Tab selector
                     ui.horizontal(|ui| {
-                        ui.selectable_value(&mut self.gui.right_panel_tab, RightPanelTab::Presets, "Presets");
-                        ui.selectable_value(&mut self.gui.right_panel_tab, RightPanelTab::Motion, "Motion");
-                        ui.selectable_value(&mut self.gui.right_panel_tab, RightPanelTab::Quality, "Quality");
+                        ui.selectable_value(
+                            &mut self.gui.right_panel_tab,
+                            RightPanelTab::Presets,
+                            "Presets",
+                        );
+                        ui.selectable_value(
+                            &mut self.gui.right_panel_tab,
+                            RightPanelTab::Motion,
+                            "Motion",
+                        );
+                        ui.selectable_value(
+                            &mut self.gui.right_panel_tab,
+                            RightPanelTab::Quality,
+                            "Quality",
+                        );
                     });
                     ui.separator();
-                    
+
                     match self.gui.right_panel_tab {
                         RightPanelTab::Presets => {
                             ui.heading("Presets");
                             ui.add_space(4.0);
-                            
+
                             // Grid of preset cards
                             egui::ScrollArea::vertical().show(ui, |ui| {
                                 let available_width = ui.available_width();
                                 let card_size = 80.0;
-                                let cols = ((available_width / (card_size + 8.0)).floor() as usize).max(2);
-                                
+                                let cols =
+                                    ((available_width / (card_size + 8.0)).floor() as usize).max(2);
+
                                 egui::Grid::new("preset_grid")
                                     .num_columns(cols)
                                     .spacing([8.0, 8.0])
                                     .show(ui, |ui| {
-                                        for (i, preset) in self.gui.presets.clone().into_iter().enumerate() {
+                                        for (i, preset) in
+                                            self.gui.presets.clone().into_iter().enumerate()
+                                        {
                                             let selected = i == self.gui.current_preset;
-                                            
+
                                             let response = ui.allocate_response(
                                                 egui::vec2(card_size, card_size + 20.0),
                                                 egui::Sense::click(),
                                             );
-                                            
+
                                             let rect = response.rect;
                                             let img_rect = egui::Rect::from_min_size(
                                                 rect.min,
                                                 egui::vec2(card_size, card_size),
                                             );
-                                            
+
                                             // Background
                                             let bg_color = if selected {
                                                 egui::Color32::from_rgb(60, 100, 140)
@@ -1163,7 +1239,7 @@ impl App for VantaMorphApp {
                                                 egui::Color32::from_gray(40)
                                             };
                                             ui.painter().rect_filled(img_rect, 4.0, bg_color);
-                                            
+
                                             // Preset icon/thumbnail placeholder
                                             ui.painter().text(
                                                 img_rect.center(),
@@ -1172,7 +1248,7 @@ impl App for VantaMorphApp {
                                                 egui::FontId::proportional(24.0),
                                                 egui::Color32::WHITE,
                                             );
-                                            
+
                                             // Name below
                                             let name_rect = egui::Rect::from_min_max(
                                                 egui::pos2(rect.min.x, img_rect.max.y),
@@ -1190,17 +1266,22 @@ impl App for VantaMorphApp {
                                                 egui::FontId::proportional(10.0),
                                                 egui::Color32::WHITE,
                                             );
-                                            
+
                                             if response.clicked() {
                                                 if preset.inner.target_img.is_some() {
                                                     self.gui.pending_preset_process = Some(i);
                                                 } else {
-                                                    self.change_sim(device, &rs.queue, preset.clone(), i);
+                                                    self.change_sim(
+                                                        device,
+                                                        &rs.queue,
+                                                        preset.clone(),
+                                                        i,
+                                                    );
                                                     self.gui.animate = true;
                                                 }
                                                 self.gui.current_preset = i;
                                             }
-                                            
+
                                             // New row after 'cols' items
                                             if (i + 1) % cols == 0 {
                                                 ui.end_row();
@@ -1209,52 +1290,74 @@ impl App for VantaMorphApp {
                                     });
                             });
                         }
-                        
+
                         RightPanelTab::Motion => {
                             ui.heading("Motion");
                             ui.add_space(8.0);
-                            
+
                             // Duration slider
                             ui.label("Duration (seconds):");
-                            ui.add(egui::Slider::new(&mut self.gui.animation_duration, 1.0..=10.0)
-                                .suffix("s"));
-                            
+                            ui.add(
+                                egui::Slider::new(&mut self.gui.animation_duration, 1.0..=10.0)
+                                    .suffix("s"),
+                            );
+
                             ui.add_space(8.0);
-                            
+
                             // Motion style
                             ui.label("Motion Style:");
                             egui::ComboBox::from_id_salt("motion_style")
                                 .selected_text(self.gui.motion_style.label())
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(&mut self.gui.motion_style, MotionStyle::Linear, "Linear");
-                                    ui.selectable_value(&mut self.gui.motion_style, MotionStyle::Float, "Float");
-                                    ui.selectable_value(&mut self.gui.motion_style, MotionStyle::Swirl, "Swirl");
-                                    ui.selectable_value(&mut self.gui.motion_style, MotionStyle::Dust, "Dust");
-                                    ui.selectable_value(&mut self.gui.motion_style, MotionStyle::MagnetSnap, "Magnet Snap");
+                                    ui.selectable_value(
+                                        &mut self.gui.motion_style,
+                                        MotionStyle::Linear,
+                                        "Linear",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.gui.motion_style,
+                                        MotionStyle::Float,
+                                        "Float",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.gui.motion_style,
+                                        MotionStyle::Swirl,
+                                        "Swirl",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.gui.motion_style,
+                                        MotionStyle::Dust,
+                                        "Dust",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.gui.motion_style,
+                                        MotionStyle::MagnetSnap,
+                                        "Magnet Snap",
+                                    );
                                 });
-                            
+
                             ui.add_space(12.0);
                             ui.separator();
                             ui.add_space(8.0);
-                            
+
                             // Motion sliders
                             ui.label("Swirl:");
                             ui.add(egui::Slider::new(&mut self.gui.swirl_amount, 0.0..=1.0));
-                            
+
                             ui.label("Turbulence:");
                             ui.add(egui::Slider::new(&mut self.gui.turbulence, 0.0..=1.0));
-                            
+
                             ui.label("Snap Strength:");
                             ui.add(egui::Slider::new(&mut self.gui.snap_strength, 0.0..=1.0));
-                            
+
                             ui.label("Dissolve:");
                             ui.add(egui::Slider::new(&mut self.gui.dissolve, 0.0..=1.0));
                         }
-                        
+
                         RightPanelTab::Quality => {
                             ui.heading("Quality");
                             ui.add_space(8.0);
-                            
+
                             // Resolution
                             ui.label("Resolution:");
                             ui.horizontal(|ui| {
@@ -1263,36 +1366,51 @@ impl App for VantaMorphApp {
                                 ui.selectable_value(&mut self.gui.resolution, 256, "256");
                                 ui.selectable_value(&mut self.gui.resolution, 512, "512");
                             });
-                            
+
                             ui.add_space(12.0);
                             ui.separator();
                             ui.add_space(8.0);
-                            
+
                             // Edge boost
                             ui.checkbox(&mut self.gui.edge_boost, "Edge Boost")
                                 .on_hover_text("Enhance edge detection for sharper morphs");
-                            
+
                             // Dithering
                             ui.checkbox(&mut self.gui.dither_enabled, "Dithering");
                             if self.gui.dither_enabled {
                                 ui.indent("dither_settings", |ui| {
                                     ui.label("Strength:");
-                                    ui.add(egui::Slider::new(&mut self.gui.dither_strength, 0.0..=1.0));
+                                    ui.add(egui::Slider::new(
+                                        &mut self.gui.dither_strength,
+                                        0.0..=1.0,
+                                    ));
                                 });
                             }
-                            
+
                             ui.add_space(12.0);
                             ui.separator();
                             ui.add_space(8.0);
-                            
+
                             // Compare view
                             ui.label("Compare View:");
                             ui.horizontal(|ui| {
-                                ui.selectable_value(&mut self.gui.compare_view, CompareView::None, "None");
-                                ui.selectable_value(&mut self.gui.compare_view, CompareView::BeforeAfter, "Before/After");
-                                ui.selectable_value(&mut self.gui.compare_view, CompareView::Split, "Split");
+                                ui.selectable_value(
+                                    &mut self.gui.compare_view,
+                                    CompareView::None,
+                                    "None",
+                                );
+                                ui.selectable_value(
+                                    &mut self.gui.compare_view,
+                                    CompareView::BeforeAfter,
+                                    "Before/After",
+                                );
+                                ui.selectable_value(
+                                    &mut self.gui.compare_view,
+                                    CompareView::Split,
+                                    "Split",
+                                );
                             });
-                            
+
                             if self.gui.compare_view == CompareView::Split {
                                 ui.label("Split Position:");
                                 ui.add(egui::Slider::new(&mut self.gui.split_position, 0.0..=1.0));
@@ -1531,13 +1649,13 @@ impl App for VantaMorphApp {
                                         #[cfg(not(target_arch = "wasm32"))]
                                         {
                                             std::thread::spawn({
-                                                let tx = self.progress_tx.clone();
+                                                let mut tx = self.progress_tx.clone();
                                                 let cancelled = self.gui.process_cancelled.clone();
                                                 move || {
                                                     let result = calculate::process(
                                                         unprocessed,
                                                         settings,
-                                                        &mut tx.clone(),
+                                                        &mut tx,
                                                         cancelled,
                                                     );
                                                     if let Err(err) = result {
@@ -1582,22 +1700,18 @@ impl App for VantaMorphApp {
                                         (DEFAULT_RESOLUTION, DEFAULT_RESOLUTION),
                                         false,
                                     );
-                                    
+
                                     // Replace existing preset or add new one
-                                    let preset_index = if let Some(idx) = self.gui.replacing_preset_index.take() {
-                                        self.gui.presets[idx] = new_preset.clone();
-                                        idx
-                                    } else {
-                                        self.gui.presets.push(new_preset.clone());
-                                        self.gui.presets.len() - 1
-                                    };
-                                    
-                                    self.change_sim(
-                                        device,
-                                        &rs.queue,
-                                        new_preset,
-                                        preset_index,
-                                    );
+                                    let preset_index =
+                                        if let Some(idx) = self.gui.replacing_preset_index.take() {
+                                            self.gui.presets[idx] = new_preset.clone();
+                                            idx
+                                        } else {
+                                            self.gui.presets.push(new_preset.clone());
+                                            self.gui.presets.len() - 1
+                                        };
+
+                                    self.change_sim(device, &rs.queue, new_preset, preset_index);
                                     self.gui.animate = true;
                                     self.gui.has_morphed_once = true;
                                     self.gui.hide_progress_modal();
@@ -1729,7 +1843,7 @@ impl App for VantaMorphApp {
                 self.gui.hide_error();
             }
         }
-        
+
         // === BOTTOM PLAYBACK PANEL ===
         egui::TopBottomPanel::bottom("playback_panel")
             .frame(egui::Frame::group(&ctx.style()).inner_margin(egui::Margin::symmetric(12, 8)))
@@ -1740,15 +1854,19 @@ impl App for VantaMorphApp {
                     ui.horizontal(|ui| {
                         // Time display (current position)
                         let progress_pct = (self.gui.timeline_position * 100.0) as u32;
-                        ui.label(egui::RichText::new(format!("{}%", progress_pct)).monospace().size(12.0));
-                        
+                        ui.label(
+                            egui::RichText::new(format!("{}%", progress_pct))
+                                .monospace()
+                                .size(12.0),
+                        );
+
                         // Timeline slider
                         let slider_response = ui.add(
                             egui::Slider::new(&mut self.gui.timeline_position, 0.0..=1.0)
                                 .show_value(false)
-                                .trailing_fill(true)
+                                .trailing_fill(true),
                         );
-                        
+
                         // Handle scrubbing interaction
                         if slider_response.dragged() {
                             self.gui.scrubbing = true;
@@ -1756,65 +1874,114 @@ impl App for VantaMorphApp {
                         } else if self.gui.scrubbing && slider_response.drag_stopped() {
                             self.gui.scrubbing = false;
                         }
-                        
+
                         // Duration display
-                        ui.label(egui::RichText::new(format!("{:.1}s", self.gui.animation_duration)).monospace().size(12.0));
+                        ui.label(
+                            egui::RichText::new(format!("{:.1}s", self.gui.animation_duration))
+                                .monospace()
+                                .size(12.0),
+                        );
                     });
-                    
+
                     ui.add_space(4.0);
-                    
+
                     // === Playback Controls Row ===
                     ui.horizontal(|ui| {
                         // Left controls: Play/Pause, Reverse, Loop, Speed
-                        
+
                         // Play/Pause button (larger)
                         let play_icon = if self.gui.animate { "⏸" } else { "▶" };
-                        if ui.add(egui::Button::new(egui::RichText::new(play_icon).size(20.0))
-                            .min_size(egui::vec2(36.0, 36.0)))
-                            .on_hover_text(if self.gui.animate { "Pause (Space)" } else { "Play (Space)" })
-                            .clicked() 
+                        if ui
+                            .add(
+                                egui::Button::new(egui::RichText::new(play_icon).size(20.0))
+                                    .min_size(egui::vec2(36.0, 36.0)),
+                            )
+                            .on_hover_text(if self.gui.animate {
+                                "Pause (Space)"
+                            } else {
+                                "Play (Space)"
+                            })
+                            .clicked()
                         {
                             self.gui.animate = !self.gui.animate;
                             if self.gui.animate {
                                 self.sim.prepare_play(&mut self.seeds, self.reverse);
                             }
                         }
-                        
+
                         // Reverse button
                         let reverse_icon = if self.reverse { "⏪" } else { "⏩" };
-                        let reverse_color = if self.reverse { Color32::from_rgb(100, 180, 255) } else { Color32::GRAY };
-                        if ui.add(egui::Button::new(egui::RichText::new(reverse_icon).size(16.0).color(reverse_color)))
-                            .on_hover_text(format!("Direction: {} (R)", if self.reverse { "Reverse" } else { "Forward" }))
+                        let reverse_color = if self.reverse {
+                            Color32::from_rgb(100, 180, 255)
+                        } else {
+                            Color32::GRAY
+                        };
+                        if ui
+                            .add(egui::Button::new(
+                                egui::RichText::new(reverse_icon)
+                                    .size(16.0)
+                                    .color(reverse_color),
+                            ))
+                            .on_hover_text(format!(
+                                "Direction: {} (R)",
+                                if self.reverse { "Reverse" } else { "Forward" }
+                            ))
                             .clicked()
                         {
                             self.reverse = !self.reverse;
                             self.sim.prepare_play(&mut self.seeds, self.reverse);
                             self.gui.animate = true;
                         }
-                        
+
                         // Loop toggle
-                        let loop_color = if self.gui.loop_playback { Color32::from_rgb(100, 200, 100) } else { Color32::GRAY };
-                        if ui.add(egui::Button::new(egui::RichText::new("🔁").size(14.0).color(loop_color)))
-                            .on_hover_text(format!("Loop: {} (L)", if self.gui.loop_playback { "On" } else { "Off" }))
+                        let loop_color = if self.gui.loop_playback {
+                            Color32::from_rgb(100, 200, 100)
+                        } else {
+                            Color32::GRAY
+                        };
+                        if ui
+                            .add(egui::Button::new(
+                                egui::RichText::new("🔁").size(14.0).color(loop_color),
+                            ))
+                            .on_hover_text(format!(
+                                "Loop: {} (L)",
+                                if self.gui.loop_playback { "On" } else { "Off" }
+                            ))
                             .clicked()
                         {
                             self.gui.loop_playback = !self.gui.loop_playback;
                         }
-                        
+
                         ui.separator();
-                        
+
                         // Speed selector
                         ui.label("Speed:");
                         egui::ComboBox::from_id_salt("speed_select")
                             .width(60.0)
                             .selected_text(self.gui.playback_speed.label())
                             .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut self.gui.playback_speed, PlaybackSpeed::Quarter, "0.25×");
-                                ui.selectable_value(&mut self.gui.playback_speed, PlaybackSpeed::Half, "0.5×");
-                                ui.selectable_value(&mut self.gui.playback_speed, PlaybackSpeed::Normal, "1×");
-                                ui.selectable_value(&mut self.gui.playback_speed, PlaybackSpeed::Double, "2×");
+                                ui.selectable_value(
+                                    &mut self.gui.playback_speed,
+                                    PlaybackSpeed::Quarter,
+                                    "0.25×",
+                                );
+                                ui.selectable_value(
+                                    &mut self.gui.playback_speed,
+                                    PlaybackSpeed::Half,
+                                    "0.5×",
+                                );
+                                ui.selectable_value(
+                                    &mut self.gui.playback_speed,
+                                    PlaybackSpeed::Normal,
+                                    "1×",
+                                );
+                                ui.selectable_value(
+                                    &mut self.gui.playback_speed,
+                                    PlaybackSpeed::Double,
+                                    "2×",
+                                );
                             });
-                        
+
                         // Spacer
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             // Simple/Pro toggle (right side)
@@ -1822,15 +1989,19 @@ impl App for VantaMorphApp {
                                 UiMode::Simple => "🔧 Pro",
                                 UiMode::Pro => "✨ Simple",
                             };
-                            if ui.button(mode_text).on_hover_text("Toggle Simple/Pro mode").clicked() {
+                            if ui
+                                .button(mode_text)
+                                .on_hover_text("Toggle Simple/Pro mode")
+                                .clicked()
+                            {
                                 self.gui.ui_mode = match self.gui.ui_mode {
                                     UiMode::Simple => UiMode::Pro,
                                     UiMode::Pro => UiMode::Simple,
                                 };
                             }
-                            
+
                             ui.separator();
-                            
+
                             // Drawing mode button (desktop only)
                             #[cfg(not(target_arch = "wasm32"))]
                             if ui.button("✏️ Draw").on_hover_text("Drawing mode").clicked() {
@@ -1841,7 +2012,7 @@ impl App for VantaMorphApp {
                     });
                 });
             });
-        
+
         // === HANDLE FILE DROPS (egui native) ===
         #[cfg(target_arch = "wasm32")]
         {
@@ -1869,9 +2040,9 @@ impl App for VantaMorphApp {
                     }
                 }
             });
-            
+
             // Use egui's built-in file drop handling
-            if self.gui.pending_auto_morph.is_none() 
+            if self.gui.pending_auto_morph.is_none()
                 && self.gui.show_progress_modal.is_none()
                 && self.gui.configuring_generation.is_none()
             {
@@ -1885,25 +2056,32 @@ impl App for VantaMorphApp {
                                     "dropped_image".to_string()
                                 } else {
                                     // Remove file extension from name
-                                    name.rsplit_once('.').map(|(n, _)| n.to_string()).unwrap_or(name)
+                                    name.rsplit_once('.')
+                                        .map(|(n, _)| n.to_string())
+                                        .unwrap_or(name)
                                 };
-                                
+
                                 // Try to load as image
                                 match image::load_from_memory(bytes) {
                                     Ok(img) => {
                                         self.gui.pending_auto_morph = Some((name, img.to_rgb8()));
-                                        
+
                                         // Hide the drop hint after successful drop
                                         if let Some(window) = web_sys::window() {
                                             if let Some(document) = window.document() {
-                                                if let Some(hint) = document.get_element_by_id("drop-hint") {
-                                                    let _ = hint.set_attribute("style", "display:none;");
+                                                if let Some(hint) =
+                                                    document.get_element_by_id("drop-hint")
+                                                {
+                                                    let _ = hint
+                                                        .set_attribute("style", "display:none;");
                                                 }
                                             }
                                         }
                                     }
                                     Err(e) => {
-                                        web_sys::console::error_1(&format!("Failed to load dropped image: {}", e).into());
+                                        web_sys::console::error_1(
+                                            &format!("Failed to load dropped image: {}", e).into(),
+                                        );
                                     }
                                 }
                                 break; // Only handle first file
@@ -1913,7 +2091,7 @@ impl App for VantaMorphApp {
                 });
             }
         }
-        
+
         // === HANDLE KEYBOARD SHORTCUTS ===
         ctx.input(|i| {
             // Space = Play/Pause
@@ -1943,7 +2121,10 @@ impl App for VantaMorphApp {
                 }
             }
             // Tab = Cycle right panel tabs (Pro mode)
-            if i.key_pressed(egui::Key::Tab) && self.gui.show_progress_modal.is_none() && self.gui.ui_mode == UiMode::Pro {
+            if i.key_pressed(egui::Key::Tab)
+                && self.gui.show_progress_modal.is_none()
+                && self.gui.ui_mode == UiMode::Pro
+            {
                 self.gui.right_panel_tab = match self.gui.right_panel_tab {
                     RightPanelTab::Presets => RightPanelTab::Motion,
                     RightPanelTab::Motion => RightPanelTab::Quality,
@@ -1951,13 +2132,13 @@ impl App for VantaMorphApp {
                 };
             }
         });
-        
+
         egui::CentralPanel::default()
             .frame(egui::Frame::new())
             .show(ctx, |ui| {
                 // Main canvas area with overlays
                 let panel_rect = ui.available_rect_before_wrap();
-                
+
                 ui.with_layout(
                     egui::Layout::centered_and_justified(egui::Direction::TopDown),
                     |ui| {
@@ -1976,7 +2157,7 @@ impl App for VantaMorphApp {
                         }
                     },
                 );
-                
+
                 // === Canvas Overlays ===
                 if self.gui.show_overlays {
                     // Bottom-left overlay: Stats
@@ -1985,7 +2166,7 @@ impl App for VantaMorphApp {
                         panel_rect.min.x + overlay_margin,
                         panel_rect.max.y - overlay_margin - 50.0,
                     );
-                    
+
                     egui::Area::new("canvas_stats_overlay".into())
                         .fixed_pos(stats_pos)
                         .interactable(false)
@@ -1996,20 +2177,38 @@ impl App for VantaMorphApp {
                                 .corner_radius(4.0)
                                 .show(ui, |ui| {
                                     let particle_count = self.size.0 * self.size.1;
-                                    ui.label(egui::RichText::new(format!("Particles: {}k", particle_count / 1000)).small().color(Color32::LIGHT_GRAY));
-                                    ui.label(egui::RichText::new(format!("Resolution: {}×{}", self.size.0, self.size.1)).small().color(Color32::LIGHT_GRAY));
-                                    ui.label(egui::RichText::new(format!("Speed: {}", self.gui.playback_speed.label())).small().color(Color32::LIGHT_GRAY));
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "Particles: {}k",
+                                            particle_count / 1000
+                                        ))
+                                        .small()
+                                        .color(Color32::LIGHT_GRAY),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "Resolution: {}×{}",
+                                            self.size.0, self.size.1
+                                        ))
+                                        .small()
+                                        .color(Color32::LIGHT_GRAY),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "Speed: {}",
+                                            self.gui.playback_speed.label()
+                                        ))
+                                        .small()
+                                        .color(Color32::LIGHT_GRAY),
+                                    );
                                 });
                         });
                 }
-                
+
                 // Show hint when no morph is active (Simple mode)
                 if self.gui.ui_mode == UiMode::Simple && !self.gui.has_morphed_once {
-                    let hint_pos = egui::pos2(
-                        panel_rect.center().x,
-                        panel_rect.max.y - 80.0,
-                    );
-                    
+                    let hint_pos = egui::pos2(panel_rect.center().x, panel_rect.max.y - 80.0);
+
                     egui::Area::new("upload_hint_overlay".into())
                         .fixed_pos(hint_pos)
                         .pivot(egui::Align2::CENTER_CENTER)
@@ -2020,8 +2219,17 @@ impl App for VantaMorphApp {
                                 .inner_margin(egui::Margin::same(12))
                                 .corner_radius(8.0)
                                 .show(ui, |ui| {
-                                    ui.label(egui::RichText::new("📁 Drop an image here or click Upload").color(Color32::WHITE));
-                                    ui.label(egui::RichText::new("to create your first morph!").small().color(Color32::LIGHT_GRAY));
+                                    ui.label(
+                                        egui::RichText::new(
+                                            "📁 Drop an image here or click Upload",
+                                        )
+                                        .color(Color32::WHITE),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new("to create your first morph!")
+                                            .small()
+                                            .color(Color32::LIGHT_GRAY),
+                                    );
                                 });
                         });
                 }
